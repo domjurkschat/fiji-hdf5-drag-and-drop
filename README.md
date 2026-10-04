@@ -5,7 +5,7 @@ The heavy lifting is handled by the `HDF5/N5/Zarr/OME-NGFF` reader that comes bu
 
 ## Installation
 
-1. Download `hdf5-drag-and-drop-v1.0.0.zip` from the [Releases](../../releases) page.
+1. Download `hdf5-drag-and-drop-v1.1.0.zip` from the [Releases](../../releases) page.
 2. Extract the archive into your Fiji installation folder. Merge when prompted.
 3. Restart Fiji.
 

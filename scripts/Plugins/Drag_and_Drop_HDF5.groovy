@@ -6,6 +6,7 @@ import ij.Prefs
 import ij.gui.GUI
 import ij.gui.GenericDialog
 import ij.plugin.FolderOpener
+import org.janelia.saalfeldlab.n5.ij.N5Importer
 import java.awt.Button
 import java.awt.Component
 import java.awt.Container
@@ -59,10 +60,11 @@ class HdfDropTarget extends DropTarget {
     }
 }
 
-// GenericDialog builds its OK/Cancel row inside showDialog(), so inject our button
-// as that row appears: index 0 places it left of OK
+// GenericDialog builds its OK/Cancel row inside showDialog(), so inject our buttons
+// as that row appears: index 0 places them left of OK
 class DatasetDialog extends GenericDialog {
     Closure onSetDefault
+    String browseUrl
 
     DatasetDialog(String title) { super(title) }
 
@@ -70,9 +72,14 @@ class DatasetDialog extends GenericDialog {
         if (visible) {
             def parent = getButtons()[0]?.getParent()
             if (parent != null) {
+                if (browseUrl != null) {
+                    def browse = new Button("Browse...")
+                    browse.addActionListener({ dispose(); new N5Importer().runWithDialog(browseUrl) } as ActionListener)
+                    parent.add(browse, 0)
+                }
                 def button = new Button("Set default")
                 button.addActionListener({ onSetDefault.call(getStringFields()[0].text) } as ActionListener)
-                parent.add(button, 0)
+                parent.add(button, browseUrl != null ? 1 : 0)
                 pack()
                 GUI.centerOnImageJScreen(this)
             }
@@ -100,8 +107,9 @@ def openOne = { File f ->
     }
 }
 
-def askDatasetPath = { int n ->
+def askDatasetPath = { int n, String browseUrl ->
     def gd = new DatasetDialog("Dataset path")
+    gd.browseUrl = browseUrl
     gd.addStringField("Dataset path (" + n + " file(s))", Prefs.get(DS_KEY, "images"), 40)
     gd.onSetDefault = { String name ->
         name = name?.trim()
@@ -113,7 +121,7 @@ def askDatasetPath = { int n ->
             IJ.showStatus("Enter a dataset name first")
     }
     gd.showDialog()
-    if (gd.wasCanceled()) return null
+    if (!gd.wasOKed()) return null
     def ds = gd.getNextString()?.trim()
     return ds ?: null
 }
@@ -123,7 +131,7 @@ def handleDrop = { files ->
         def hdf = files.findAll { isHdf5(it) }.sort { it.path }
         files.findAll { !isHdf5(it) }.each { openOne(it) }
         if (hdf.isEmpty()) return
-        def ds = askDatasetPath(hdf.size())
+        def ds = askDatasetPath(hdf.size(), "hdf5://" + hdf[0].toURI())
         if (ds == null) return
         hdf.each { f ->
             try {
